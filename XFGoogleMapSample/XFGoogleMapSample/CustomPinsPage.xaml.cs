@@ -45,12 +45,22 @@ namespace XFGoogleMapSample
             Position = new Position(35.71d, 139.81d)
         };
 
+        // The second pin
+        readonly Pin _pinTokyo2 = new Pin()
+        {
+            Icon = BitmapDescriptorFactory.DefaultMarker(Color.Gray),
+            Type = PinType.Place,
+            Label = "Second Pin",
+            Position = new Position(35.71d, 139.815d),
+            ZIndex = 5
+        };
+
         public CustomPinsPage()
         {
             InitializeComponent();
 
             // Switch contols as toggle
-            var switches = new Switch[] { switchPinColor, switchPinBundle, switchPinStream };
+            var switches = new Xamarin.Forms.Switch[] { switchPinColor, switchPinBundle, switchPinStream };
             foreach (var sw in switches)
             {
                 sw.Toggled += (sender, e) =>
@@ -157,8 +167,34 @@ namespace XFGoogleMapSample
                 {
                     _pinTokyo.InfoWindowAnchor = new Point(0.5, 0.0);
                 }
-
             };
+
+            // Pin Transparency
+            sliderTransparency.ValueChanged += (sender, e) => 
+            {
+                _pinTokyo.Transparency = (float)(e.NewValue / 10f);
+            };
+            _pinTokyo.Transparency = (float)(sliderTransparency.Value / 10f);
+
+            // ZIndex
+            buttonMoveToFront.Clicked += (sender, e) =>
+            {
+                map.SelectedPin = null;
+                _pinTokyo.ZIndex = _pinTokyo2.ZIndex + 1;
+            };
+            buttonMoveToBack.Clicked += (sender, e) =>
+            {
+                map.SelectedPin = null;
+                _pinTokyo.ZIndex = _pinTokyo2.ZIndex - 1;
+            };
+
+            // MapToolbarEnabled
+            map.UiSettings.MapToolbarEnabled = true;
+            switchMapToolbarEnabled.Toggled += (sender, e) =>
+            {
+                map.UiSettings.MapToolbarEnabled = e.Value;
+            };
+            switchMapToolbarEnabled.IsToggled = map.UiSettings.MapToolbarEnabled;
 
             map.PinDragStart += (_, e) => labelDragStatus.Text = $"DragStart - {PrintPin(e.Pin)}";
             map.PinDragging += (_, e) => labelDragStatus.Text = $"Dragging - {PrintPin(e.Pin)}";
@@ -170,6 +206,7 @@ namespace XFGoogleMapSample
 
             _pinTokyo.IsDraggable = true;
             map.Pins.Add(_pinTokyo);
+            map.Pins.Add(_pinTokyo2);
             map.SelectedPin = _pinTokyo;
             map.MoveToRegion(MapSpan.FromCenterAndRadius(_pinTokyo.Position, Distance.FromMeters(5000)), true);
         }
@@ -198,8 +235,8 @@ namespace XFGoogleMapSample
             {
                 var assembly = typeof(CustomPinsPage).GetTypeInfo().Assembly;
                 var file = buttonPinStream.Items[buttonPinStream.SelectedIndex];
-                var stream = assembly.GetManifestResourceStream($"XFGoogleMapSample.{file}");
-                _pinTokyo.Icon = BitmapDescriptorFactory.FromStream(stream);
+                var stream = assembly.GetManifestResourceStream($"XFGoogleMapSample.{file}") ?? assembly.GetManifestResourceStream($"XFGoogleMapSample.local.{file}");
+                _pinTokyo.Icon = BitmapDescriptorFactory.FromStream(stream, id: file);
             }
         }
    }

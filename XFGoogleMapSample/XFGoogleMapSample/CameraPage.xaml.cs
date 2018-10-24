@@ -23,10 +23,38 @@ namespace XFGoogleMapSample
             map.Pins.Add(pinParis);
             map.Pins.Add(pinTokyo);
 
+            // CameraChanged is obsolete, please use CameraIdled
             map.CameraChanged += (sender, e) => 
             {
                 var p = e.Position;
-                labelStatus.Text = $"Lat={p.Target.Latitude:0.00}, Long={p.Target.Longitude:0.00}, Zoom={p.Zoom:0.00}, Bearing={p.Bearing:0.00}, Tilt={p.Tilt:0.00}";
+                var text = $"CameraChanged:Lat={p.Target.Latitude:0.00}, Long={p.Target.Longitude:0.00}, Zoom={p.Zoom:0.00}, Bearing={p.Bearing:0.00}, Tilt={p.Tilt:0.00}";
+                labelStatus.Text = text;
+                Debug.WriteLine(text);
+            };
+
+            map.CameraMoveStarted += (sender, e) => 
+            {
+                var text = $"CameraMoveStarted:IsGesture={e.IsGesture}";
+                labelStatus.Text = text;
+                Debug.WriteLine(text);
+            };
+
+            map.CameraMoving += (sender, e) =>
+            {
+                var p = e.Position;
+                var text = $"CameraMoving:Lat={p.Target.Latitude:0.00}, Long={p.Target.Longitude:0.00}, Zoom={p.Zoom:0.00}, Bearing={p.Bearing:0.00}, Tilt={p.Tilt:0.00}";
+                labelStatus.Text = text;
+                Debug.WriteLine(text);
+            };
+
+            map.CameraIdled += (sender, e) => 
+            {
+                var p = e.Position;
+                var text = $"CameraIdled:Lat={p.Target.Latitude:0.00}, Long={p.Target.Longitude:0.00}, Zoom={p.Zoom:0.00}, Bearing={p.Bearing:0.00}, Tilt={p.Tilt:0.00}";
+                labelStatus.Text = text;
+                Debug.WriteLine(text);
+
+                UpdateCornerPins();
             };
 
             // MoveToCamera with Position
@@ -117,6 +145,39 @@ namespace XFGoogleMapSample
                 }
             };
             map.Padding = new Thickness(0, 0, 0, 0);
+        }
+
+        private void UpdateCornerPins()
+        {
+            map.Pins.Clear();
+
+            map.Pins.Add(new Pin()
+            {
+                Label = "FarLeft",
+                Position = map.Region.FarLeft,
+                Rotation = 135f
+            });
+
+            map.Pins.Add(new Pin()
+            {
+                Label = "FarRight",
+                Position = map.Region.FarRight,
+                Rotation = -135f
+            });
+
+            map.Pins.Add(new Pin()
+            {
+                Label = "NearLeft",
+                Position = map.Region.NearLeft,
+                Rotation = 45f
+            });
+
+            map.Pins.Add(new Pin()
+            {
+                Label = "NearRight",
+                Position = map.Region.NearRight,
+                Rotation = -45f
+            });
         }
     }
 }

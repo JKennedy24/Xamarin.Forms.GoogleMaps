@@ -1,18 +1,24 @@
 using System;
 using System.Collections.Generic;
 using Android.Gms.Maps;
-using Xamarin.Forms.GoogleMaps.Logics;
 using NativeGroundOverlay = Android.Gms.Maps.Model.GroundOverlay;
 using Android.Gms.Maps.Model;
 using Xamarin.Forms.GoogleMaps.Android.Extensions;
-using Xamarin.Forms.GoogleMaps.Android;
 using System.Linq;
+using Xamarin.Forms.GoogleMaps.Android.Factories;
 
 namespace Xamarin.Forms.GoogleMaps.Logics.Android
 {
-    internal class GroundOverlayLogic : DefaultLogic<GroundOverlay, NativeGroundOverlay, GoogleMap>
+    internal class GroundOverlayLogic : DefaultGroundOverlayLogic<NativeGroundOverlay, GoogleMap>
     {
         protected override IList<GroundOverlay> GetItems(Map map) => map.GroundOverlays;
+
+        private readonly IBitmapDescriptorFactory _bitmapDescriptorFactory;
+
+        public GroundOverlayLogic(IBitmapDescriptorFactory bitmapDescriptorFactory)
+        {
+            _bitmapDescriptorFactory = bitmapDescriptorFactory;
+        }
 
         internal override void Register(GoogleMap oldNativeMap, Map oldMap, GoogleMap newNativeMap, Map newMap)
         {
@@ -36,12 +42,16 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
 
         protected override NativeGroundOverlay CreateNativeItem(GroundOverlay outerItem)
         {
+            var factory = _bitmapDescriptorFactory ?? DefaultBitmapDescriptorFactory.Instance;
+            var nativeDescriptor = factory.ToNative(outerItem.Icon);
+
             var opts = new GroundOverlayOptions()
                 .PositionFromBounds(outerItem.Bounds.ToLatLngBounds())
                 .Clickable(outerItem.IsClickable)
                 .InvokeBearing(outerItem.Bearing)
-                .InvokeImage(outerItem.Icon.ToBitmapDescriptor())
-                .InvokeTransparency(outerItem.Transparency);
+                .InvokeImage(nativeDescriptor)
+                .InvokeTransparency(outerItem.Transparency)
+                .InvokeZIndex(outerItem.ZIndex);
 
             var overlay = NativeMap.AddGroundOverlay(opts);
 
@@ -75,36 +85,36 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
             targetOuterItem?.SendTap();
         }
 
-        protected override void OnItemPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        internal override void OnUpdateBearing(GroundOverlay outerItem, NativeGroundOverlay nativeItem)
         {
-            base.OnItemPropertyChanged(sender, e);
+            nativeItem.Bearing = outerItem.Bearing;
+        }
 
-            var overlay = sender as GroundOverlay;
-            var nativeOverlay = overlay?.NativeObject as NativeGroundOverlay;
+        internal override void OnUpdateBounds(GroundOverlay outerItem, NativeGroundOverlay nativeItem)
+        {
+            nativeItem.SetPositionFromBounds(outerItem.Bounds.ToLatLngBounds()); 
+        }
 
-            if (nativeOverlay == null)
-                return;
+        internal override void OnUpdateIcon(GroundOverlay outerItem, NativeGroundOverlay nativeItem)
+        {
+            var factory = _bitmapDescriptorFactory ?? DefaultBitmapDescriptorFactory.Instance;
+            var nativeDescriptor = factory.ToNative(outerItem.Icon);
+            nativeItem.SetImage(nativeDescriptor);
+        }
 
-            if (e.PropertyName == GroundOverlay.BearingProperty.PropertyName)
-            {
-                nativeOverlay.Bearing = overlay.Bearing;
-            }
-            else if (e.PropertyName == GroundOverlay.BoundsProperty.PropertyName)
-            {
-                nativeOverlay.SetPositionFromBounds(overlay.Bounds.ToLatLngBounds());
-            }
-            else if (e.PropertyName == GroundOverlay.IconProperty.PropertyName)
-            {
-                nativeOverlay.SetImage(overlay.Icon.ToBitmapDescriptor());
-            }
-            else if (e.PropertyName == GroundOverlay.IsClickableProperty.PropertyName)
-            {
-                nativeOverlay.Clickable = overlay.IsClickable;
-            }
-            else if (e.PropertyName == GroundOverlay.TransparencyProperty.PropertyName)
-            {
-                nativeOverlay.Transparency = overlay.Transparency;
-            }
+        internal override void OnUpdateIsClickable(GroundOverlay outerItem, NativeGroundOverlay nativeItem)
+        {
+            nativeItem.Clickable = outerItem.IsClickable;
+        }
+
+        internal override void OnUpdateTransparency(GroundOverlay outerItem, NativeGroundOverlay nativeItem)
+        {
+            nativeItem.Transparency = outerItem.Transparency;
+        }
+
+        internal override void OnUpdateZIndex(GroundOverlay outerItem, NativeGroundOverlay nativeItem)
+        {
+            nativeItem.ZIndex = outerItem.ZIndex;
         }
     }
 }

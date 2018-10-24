@@ -6,6 +6,8 @@ using CoreGraphics;
 using Google.Maps;
 using UIKit;
 using Xamarin.Forms.GoogleMaps.iOS.Extensions;
+using Xamarin.Forms.GoogleMaps.iOS.Factories;
+
 namespace Xamarin.Forms.GoogleMaps.Logics.iOS
 {
     internal class PinLogic : DefaultPinLogic<Marker, MapView>
@@ -16,6 +18,26 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
         private Pin _draggingPin;
         private volatile bool _withoutUpdateNative = false;
 
+        private readonly Action<Pin, Marker> _onMarkerCreating;
+        private readonly Action<Pin, Marker> _onMarkerCreated;
+        private readonly Action<Pin, Marker> _onMarkerDeleting;
+        private readonly Action<Pin, Marker> _onMarkerDeleted;
+        private readonly IImageFactory _imageFactory;
+
+        public PinLogic(
+            IImageFactory imageFactory,
+            Action<Pin, Marker> onMarkerCreating,
+            Action<Pin, Marker> onMarkerCreated,
+            Action<Pin, Marker> onMarkerDeleting,
+            Action<Pin, Marker> onMarkerDeleted)
+        {
+            _imageFactory = imageFactory;
+            _onMarkerCreating = onMarkerCreating;
+            _onMarkerCreated = onMarkerCreated;
+            _onMarkerDeleting = onMarkerDeleting;
+            _onMarkerDeleted = onMarkerDeleted;
+        }
+
         internal override void Register(MapView oldNativeMap, Map oldMap, MapView newNativeMap, Map newMap)
         {
             base.Register(oldNativeMap, oldMap, newNativeMap, newMap);
@@ -23,6 +45,7 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
             if (newNativeMap != null)
             {
                 newNativeMap.InfoTapped += OnInfoTapped;
+                newNativeMap.InfoLongPressed += OnInfoLongPressed;
                 newNativeMap.TappedMarker = HandleGMSTappedMarker;
                 newNativeMap.InfoClosed += InfoWindowClosed;
                 newNativeMap.DraggingMarkerStarted += DraggingMarkerStarted;
@@ -42,6 +65,7 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
                 nativeMap.InfoClosed -= InfoWindowClosed;
                 nativeMap.TappedMarker = null;
                 nativeMap.InfoTapped -= OnInfoTapped;
+                nativeMap.InfoLongPressed -= OnInfoLongPressed;
             }
 
             base.Unregister(nativeMap, map);
@@ -56,16 +80,23 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
             nativeMarker.Rotation = outerItem.Rotation;
             nativeMarker.GroundAnchor = new CGPoint(outerItem.Anchor.X, outerItem.Anchor.Y);
             nativeMarker.Flat = outerItem.Flat;
+            nativeMarker.ZIndex = outerItem.ZIndex;
+            nativeMarker.Opacity = 1f - outerItem.Transparency;
 
             if (outerItem.Icon != null)
             {
-                nativeMarker.Icon = outerItem.Icon.ToUIImage();
+                var factory = _imageFactory ?? DefaultImageFactory.Instance;
+                nativeMarker.Icon = factory.ToUIImage(outerItem.Icon);
             }
+
+            _onMarkerCreating(outerItem, nativeMarker);
 
             outerItem.NativeObject = nativeMarker;
             nativeMarker.Map = outerItem.IsVisible ? NativeMap : null;
 
             OnUpdateIconView(outerItem, nativeMarker);
+
+            _onMarkerCreated(outerItem, nativeMarker);
 
             return nativeMarker;
         }
@@ -73,10 +104,15 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
         protected override Marker DeleteNativeItem(Pin outerItem)
         {
             var nativeMarker = outerItem.NativeObject as Marker;
+
+            _onMarkerDeleting(outerItem, nativeMarker);
+
             nativeMarker.Map = null;
 
             if (ReferenceEquals(Map.SelectedPin, outerItem))
                 Map.SelectedPin = null;
+
+            _onMarkerDeleted(outerItem, nativeMarker);
 
             return nativeMarker;
         }
@@ -116,6 +152,17 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
             if (targetPin != null)
             {
                 Map.SendInfoWindowClicked(targetPin);
+            }
+        }
+
+        private void OnInfoLongPressed(object sender, GMSMarkerEventEventArgs e)
+        {
+            // lookup pin
+            var targetPin = LookupPin(e.Marker);
+            
+            if (targetPin != null)
+            {
+                Map.SendInfoWindowLongClicked(targetPin);
             }
         }
 
@@ -232,7 +279,8 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
             }
             else
             {
-                nativeItem.Icon = outerItem?.Icon?.ToUIImage();
+                var factory = _imageFactory ?? DefaultImageFactory.Instance;
+                nativeItem.Icon = factory.ToUIImage(outerItem.Icon);
             }
         }
 
@@ -291,6 +339,16 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
         protected override void OnUpdateInfoWindowAnchor(Pin outerItem, Marker nativeItem)
         {
             nativeItem.InfoWindowAnchor = new CGPoint(outerItem.InfoWindowAnchor.X, outerItem.InfoWindowAnchor.Y);
+        }
+
+        protected override void OnUpdateZIndex(Pin outerItem, Marker nativeItem)
+        {
+            nativeItem.ZIndex = outerItem.ZIndex;
+        }
+
+        protected override void OnUpdateTransparency(Pin outerItem, Marker nativeItem)
+        {
+            nativeItem.Opacity = 1f - outerItem.Transparency;
         }
     }
 }

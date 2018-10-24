@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.ComponentModel;
 using Xamarin.Forms.Platform.iOS;
 using Google.Maps;
@@ -11,6 +11,7 @@ using Xamarin.Forms.GoogleMaps.Internals;
 using GCameraUpdate = Google.Maps.CameraUpdate;
 using GCameraPosition = Google.Maps.CameraPosition;
 using System.Threading.Tasks;
+using Foundation;
 
 namespace Xamarin.Forms.GoogleMaps.iOS
 {
@@ -18,12 +19,19 @@ namespace Xamarin.Forms.GoogleMaps.iOS
     {
         bool _shouldUpdateRegion = true;
 
+        // ReSharper disable once MemberCanBePrivate.Global
         protected MapView NativeMap => (MapView)Control;
+        // ReSharper disable once MemberCanBePrivate.Global
         protected Map Map => (Map)Element;
 
+        internal static PlatformConfig Config { private get; set; }
+
+        readonly UiSettingsLogic _uiSettingsLogic = new UiSettingsLogic();
         readonly CameraLogic _cameraLogic;
 
         readonly BaseLogic<MapView>[] _logics;
+
+        private bool _ready = false;
 
         public MapRenderer()
         {
@@ -32,9 +40,9 @@ namespace Xamarin.Forms.GoogleMaps.iOS
                 new PolylineLogic(),
                 new PolygonLogic(),
                 new CircleLogic(),
-                new PinLogic(),
+                new PinLogic(Config.ImageFactory, OnMarkerCreating, OnMarkerCreated, OnMarkerDeleting, OnMarkerDeleted),
                 new TileLayerLogic(),
-                new GroundOverlayLogic()
+                new GroundOverlayLogic(Config.ImageFactory)
             };
 
             _cameraLogic = new CameraLogic(() =>
@@ -52,17 +60,25 @@ namespace Xamarin.Forms.GoogleMaps.iOS
         {
             if (disposing)
             {
-                Map.OnSnapshot -= OnSnapshot;
+                if(Map!=null)
+                {
+                    Map.OnSnapshot -= OnSnapshot;
+                    foreach (var logic in _logics)
+                    {
+                        logic.Unregister(NativeMap, Map);
+                    }
+                }               
                 _cameraLogic.Unregister();
-
-                foreach (var logic in _logics)
-                    logic.Unregister(NativeMap, Map);
+                _uiSettingsLogic.Unregister();
 
                 var mkMapView = (MapView)Control;
-                mkMapView.CoordinateLongPressed -= CoordinateLongPressed;
-                mkMapView.CoordinateTapped -= CoordinateTapped;
-                mkMapView.CameraPositionChanged -= CameraPositionChanged;
-                mkMapView.DidTapMyLocationButton = null;
+                if(mkMapView!=null)
+                {
+                    mkMapView.CoordinateLongPressed -= CoordinateLongPressed;
+                    mkMapView.CoordinateTapped -= CoordinateTapped;
+                    mkMapView.CameraPositionChanged -= CameraPositionChanged;
+                    mkMapView.DidTapMyLocationButton = null;
+                }
             }
 
             base.Dispose(disposing);
@@ -89,8 +105,17 @@ namespace Xamarin.Forms.GoogleMaps.iOS
             var oldMapView = (MapView)Control;
             if (e.OldElement != null)
             {
-                Map.OnSnapshot -= OnSnapshot;
+                var oldMapModel = (Map)e.OldElement;
+                oldMapModel.OnSnapshot -= OnSnapshot;
                 _cameraLogic.Unregister();
+
+                if (oldMapView != null)
+                {
+                    oldMapView.CoordinateLongPressed -= CoordinateLongPressed;
+                    oldMapView.CoordinateTapped -= CoordinateTapped;
+                    oldMapView.CameraPositionChanged -= CameraPositionChanged;
+                    oldMapView.DidTapMyLocationButton = null;
+                }
             }
 
             if (e.NewElement != null)
@@ -110,15 +135,20 @@ namespace Xamarin.Forms.GoogleMaps.iOS
                 _cameraLogic.Register(Map, NativeMap);
                 Map.OnSnapshot += OnSnapshot;
 
-                _cameraLogic.MoveCamera(mapModel.InitialCameraUpdate);
+                //_cameraLogic.MoveCamera(mapModel.InitialCameraUpdate);
+                //_ready = true;
 
+                _uiSettingsLogic.Register(Map, NativeMap);
                 UpdateMapType();
-                UpdateIsShowingUser();
-                UpdateHasScrollEnabled();
-                UpdateHasZoomEnabled();
-                UpdateHasRotationEnabled();
+                UpdateIsShowingUser(_uiSettingsLogic.MyLocationButtonEnabled);
+                UpdateHasScrollEnabled(_uiSettingsLogic.ScrollGesturesEnabled);
+                UpdateHasZoomEnabled(_uiSettingsLogic.ZoomGesturesEnabled);
+                UpdateHasRotationEnabled(_uiSettingsLogic.RotateGesturesEnabled);
                 UpdateIsTrafficEnabled();
                 UpdatePadding();
+                UpdateMapStyle();
+                UpdateMyLocationEnabled();
+                _uiSettingsLogic.Initialize();
 
                 foreach (var logic in _logics)
                 {
@@ -140,8 +170,6 @@ namespace Xamarin.Forms.GoogleMaps.iOS
                 return;
             }
 
-            var mapModel = (Map)Element;
-
             if (e.PropertyName == Map.MapTypeProperty.PropertyName)
             {
                 UpdateMapType();
@@ -149,6 +177,10 @@ namespace Xamarin.Forms.GoogleMaps.iOS
             else if (e.PropertyName == Map.IsShowingUserProperty.PropertyName)
             {
                 UpdateIsShowingUser();
+            }
+            else if (e.PropertyName == Map.MyLocationEnabledProperty.PropertyName)
+            {
+                UpdateMyLocationEnabled();
             }
             else if (e.PropertyName == Map.HasScrollEnabledProperty.PropertyName)
             {
@@ -175,10 +207,13 @@ namespace Xamarin.Forms.GoogleMaps.iOS
             {
                 UpdateHasIndoorEnabled();
             }
-
             else if (e.PropertyName == Map.PaddingProperty.PropertyName)
             {
                 UpdatePadding();
+            }
+            else if (e.PropertyName == Map.MapStyleProperty.PropertyName)
+            {
+                UpdateMapStyle();
             }
 
             foreach (var logic in _logics)
@@ -197,9 +232,10 @@ namespace Xamarin.Forms.GoogleMaps.iOS
                 return;
             }
 
-            if (_shouldUpdateRegion)
+            if (_shouldUpdateRegion && !_ready)
             {
                 _cameraLogic.MoveCamera(((Map)Element).InitialCameraUpdate);
+                _ready = true;
                 _shouldUpdateRegion = false;
             }
 
@@ -237,7 +273,12 @@ namespace Xamarin.Forms.GoogleMaps.iOS
             var minLon = Math.Min(Math.Min(Math.Min(region.NearLeft.Longitude, region.NearRight.Longitude), region.FarLeft.Longitude), region.FarRight.Longitude);
             var maxLat = Math.Max(Math.Max(Math.Max(region.NearLeft.Latitude, region.NearRight.Latitude), region.FarLeft.Latitude), region.FarRight.Latitude);
             var maxLon = Math.Max(Math.Max(Math.Max(region.NearLeft.Longitude, region.NearRight.Longitude), region.FarLeft.Longitude), region.FarRight.Longitude);
+            
+#pragma warning disable 618
             mapModel.VisibleRegion = new MapSpan(pos.Target.ToPosition(), maxLat - minLat, maxLon - minLon);
+#pragma warning restore 618
+
+            Map.Region = mkMapView.Projection.VisibleRegion.ToRegion();
 
             var camera = pos.ToXamarinForms();
             Map.CameraPosition = camera;
@@ -259,25 +300,38 @@ namespace Xamarin.Forms.GoogleMaps.iOS
             return Map.SendMyLocationClicked();
         }
 
-        void UpdateHasScrollEnabled()
+        private void UpdateHasScrollEnabled(bool? initialScrollGesturesEnabled = null)
         {
-            ((MapView)Control).Settings.ScrollGestures = ((Map)Element).HasScrollEnabled;
+#pragma warning disable 618
+            NativeMap.Settings.ScrollGestures = initialScrollGesturesEnabled ?? ((Map)Element).HasScrollEnabled;
+#pragma warning restore 618
         }
 
-        void UpdateHasZoomEnabled()
+        private void UpdateHasZoomEnabled(bool? initialZoomGesturesEnabled = null)
         {
-            ((MapView)Control).Settings.ZoomGestures = ((Map)Element).HasZoomEnabled;
+#pragma warning disable 618
+            NativeMap.Settings.ZoomGestures = initialZoomGesturesEnabled ?? ((Map)Element).HasZoomEnabled;
+#pragma warning restore 618
         }
 
-        void UpdateHasRotationEnabled()
+        private void UpdateHasRotationEnabled(bool? initialRotateGesturesEnabled = null)
         {
-            ((MapView)Control).Settings.ZoomGestures = ((Map)Element).HasRotationEnabled;
+#pragma warning disable 618
+            NativeMap.Settings.RotateGestures = initialRotateGesturesEnabled ?? ((Map)Element).HasRotationEnabled;
+#pragma warning restore 618
         }
 
-        void UpdateIsShowingUser()
+        private void UpdateIsShowingUser(bool? initialMyLocationButtonEnabled = null)
         {
+#pragma warning disable 618
             ((MapView)Control).MyLocationEnabled = ((Map)Element).IsShowingUser;
-            ((MapView)Control).Settings.MyLocationButton = ((Map)Element).IsShowingUser;
+            ((MapView)Control).Settings.MyLocationButton = initialMyLocationButtonEnabled ?? ((Map)Element).IsShowingUser;
+#pragma warning restore 618
+        }
+
+        void UpdateMyLocationEnabled()
+        {
+            ((MapView)Control).MyLocationEnabled = ((Map)Element).MyLocationEnabled;
         }
 
         void UpdateIsTrafficEnabled()
@@ -287,7 +341,7 @@ namespace Xamarin.Forms.GoogleMaps.iOS
 
         void UpdateHasIndoorEnabled()
         {
-            ((MapView) Control).IndoorEnabled = ((Map) Element).IsIndoorEnabled;
+            ((MapView) Control).IndoorEnabled = ((Map)Element).IsIndoorEnabled;
         }
 
         void UpdateMapType()
@@ -303,6 +357,9 @@ namespace Xamarin.Forms.GoogleMaps.iOS
                 case MapType.Hybrid:
                     ((MapView)Control).MapType = MapViewType.Hybrid;
                     break;
+                case MapType.Terrain:
+                    ((MapView)Control).MapType = MapViewType.Terrain;
+                    break;
                 case MapType.None:
                     ((MapView)Control).MapType = MapViewType.None;
                     break;
@@ -315,5 +372,62 @@ namespace Xamarin.Forms.GoogleMaps.iOS
         {
             ((MapView)Control).Padding = ((Map)Element).Padding.ToUIEdgeInsets();
         }
+
+        void UpdateMapStyle()
+        {
+            if (Map.MapStyle == null)
+            {
+                ((MapView)Control).MapStyle = null;
+            }
+            else
+            {
+                var mapStyle = Google.Maps.MapStyle.FromJson(Map.MapStyle.JsonStyle, null);
+                ((MapView)Control).MapStyle = mapStyle;
+            }
+        }
+
+        #region Overridable Members
+
+        /// <summary>
+        /// Call when before marker create.
+        /// You can override your custom renderer for customize marker.
+        /// </summary>
+        /// <param name="outerItem">the pin.</param>
+        /// <param name="innerItem">the marker options.</param>
+        protected virtual void OnMarkerCreating(Pin outerItem, Marker innerItem)
+        {
+        }
+
+        /// <summary>
+        /// Call when after marker create.
+        /// You can override your custom renderer for customize marker.
+        /// </summary>
+        /// <param name="outerItem">the pin.</param>
+        /// <param name="innerItem">thr marker.</param>
+        protected virtual void OnMarkerCreated(Pin outerItem, Marker innerItem)
+        {
+        }
+
+        /// <summary>
+        /// Call when before marker delete.
+        /// You can override your custom renderer for customize marker.
+        /// </summary>
+        /// <param name="outerItem">the pin.</param>
+        /// <param name="innerItem">thr marker.</param>
+        protected virtual void OnMarkerDeleting(Pin outerItem, Marker innerItem)
+        {
+        }
+
+        /// <summary>
+        /// Call when after marker delete.
+        /// You can override your custom renderer for customize marker.
+        /// </summary>
+        /// <param name="outerItem">the pin.</param>
+        /// <param name="innerItem">thr marker.</param>
+        protected virtual void OnMarkerDeleted(Pin outerItem, Marker innerItem)
+        {
+        }
+
+        #endregion    
     }
 }

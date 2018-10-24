@@ -5,9 +5,10 @@ using System.Linq;
 using System.ComponentModel;
 using Xamarin.Forms.GoogleMaps.Android;
 using Xamarin.Forms.GoogleMaps.Android.Extensions;
-using NativeBitmapDescriptorFactory = Android.Gms.Maps.Model.BitmapDescriptorFactory;
 using Android.Widget;
 using System;
+using Android.Content;
+using Xamarin.Forms.GoogleMaps.Android.Factories;
 
 namespace Xamarin.Forms.GoogleMaps.Logics.Android
 {
@@ -19,6 +20,28 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
         private Pin _draggingPin;
         private volatile bool _withoutUpdateNative = false;
 
+        private readonly Context _context;
+        private readonly IBitmapDescriptorFactory _bitmapDescriptorFactory;
+        private readonly Action<Pin, MarkerOptions> _onMarkerCreating;
+        private readonly Action<Pin, Marker> _onMarkerCreated;
+        private readonly Action<Pin, Marker> _onMarkerDeleting;
+        private readonly Action<Pin, Marker> _onMarkerDeleted;
+
+        public PinLogic(
+            Context context,
+            IBitmapDescriptorFactory bitmapDescriptorFactory,
+            Action<Pin, MarkerOptions> onMarkerCreating,
+            Action<Pin, Marker> onMarkerCreated, 
+            Action<Pin, Marker> onMarkerDeleting,
+            Action<Pin, Marker> onMarkerDeleted)
+        {
+            _bitmapDescriptorFactory = bitmapDescriptorFactory;
+            _context = context;
+            _onMarkerCreating = onMarkerCreating;
+            _onMarkerCreated = onMarkerCreated;
+            _onMarkerDeleting = onMarkerDeleting;
+            _onMarkerDeleted = onMarkerDeleted;
+        }
 
         internal override void Register(GoogleMap oldNativeMap, Map oldMap, GoogleMap newNativeMap, Map newMap)
         {
@@ -27,6 +50,7 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
             if (newNativeMap != null)
             {
                 newNativeMap.InfoWindowClick += OnInfoWindowClick;
+                newNativeMap.InfoWindowLongClick += OnInfoWindowLongClick;
                 newNativeMap.MarkerClick += OnMakerClick;
                 newNativeMap.InfoWindowClose += OnInfoWindowClose;
                 newNativeMap.MarkerDragStart += OnMarkerDragStart;
@@ -45,6 +69,7 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
                 nativeMap.MarkerClick -= OnMakerClick;
                 nativeMap.InfoWindowClose -= OnInfoWindowClose;
                 nativeMap.InfoWindowClick -= OnInfoWindowClick;
+                nativeMap.InfoWindowLongClick -= OnInfoWindowLongClick;
             }
 
             base.Unregister(nativeMap, map);
@@ -60,12 +85,18 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
                 .Draggable(outerItem.IsDraggable)
                 .SetRotation(outerItem.Rotation)
                 .Anchor((float)outerItem.Anchor.X, (float)outerItem.Anchor.Y)
-                .Flat(outerItem.Flat);
+                .InvokeZIndex(outerItem.ZIndex)
+                .Flat(outerItem.Flat)
+                .SetAlpha(1f - outerItem.Transparency);
 
             if (outerItem.Icon != null)
             {
-                opts.SetIcon(outerItem.Icon.ToBitmapDescriptor());
+                var factory = _bitmapDescriptorFactory ?? DefaultBitmapDescriptorFactory.Instance;
+                var nativeDescriptor = factory.ToNative(outerItem.Icon);
+                opts.SetIcon(nativeDescriptor);
             }
+
+            _onMarkerCreating(outerItem, opts);
 
             var marker = NativeMap.AddMarker(opts);
             // If the pin has an IconView set this method will convert it into an icon for the marker
@@ -81,6 +112,7 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
 
             // associate pin with marker for later lookup in event handlers
             outerItem.NativeObject = marker;
+            _onMarkerCreated(outerItem, marker);
             return marker;
         }
 
@@ -89,12 +121,14 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
             var marker = outerItem.NativeObject as Marker;
             if (marker == null)
                 return null;
+            _onMarkerDeleting(outerItem, marker);
             marker.Remove();
             outerItem.NativeObject = null;
 
             if (ReferenceEquals(Map.SelectedPin, outerItem))
                 Map.SelectedPin = null;
 
+            _onMarkerDeleted(outerItem, marker);
             return marker;
         }
 
@@ -115,6 +149,19 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
             if (targetPin != null)
             {
                 Map.SendInfoWindowClicked(targetPin);
+            }
+        }
+
+        private void OnInfoWindowLongClick(object sender, GoogleMap.InfoWindowLongClickEventArgs e)
+        {
+            // lookup pin
+            var targetPin = LookupPin(e.Marker);
+
+            // only consider event handled if a handler is present.
+            // Else allow default behavior of displaying an info window.
+            if (targetPin != null)
+            {
+                Map.SendInfoWindowLongClicked(targetPin);
             }
         }
 
@@ -261,7 +308,9 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
             }
             else
             {
-                nativeItem.SetIcon(outerItem?.Icon?.ToBitmapDescriptor() ?? NativeBitmapDescriptorFactory.DefaultMarker());
+                var factory = _bitmapDescriptorFactory ?? DefaultBitmapDescriptorFactory.Instance;
+                var nativeDescriptor = factory.ToNative(outerItem.Icon);
+                nativeItem.SetIcon(nativeDescriptor);
                 nativeItem.SetAnchor(0.5f, 1f);
                 nativeItem.SetInfoWindowAnchor(0.5f, 0f);
             }
@@ -269,10 +318,13 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
 
         private async void TransformXamarinViewToAndroidBitmap(Pin outerItem, Marker nativeItem)
         {
-            if (outerItem?.Icon?.Type == BitmapDescriptorType.View && outerItem?.Icon?.View != null)
+            if (outerItem?.Icon?.Type == BitmapDescriptorType.View && outerItem.Icon?.View != null)
             {
                 var iconView = outerItem.Icon.View;
-                var nativeView = await Utils.ConvertFormsToNative(iconView, new Rectangle(0, 0, (double)Utils.DpToPx((float)iconView.WidthRequest), (double)Utils.DpToPx((float)iconView.HeightRequest)), Platform.Android.Platform.CreateRenderer(iconView));
+                var nativeView = await Utils.ConvertFormsToNative(
+                    iconView, 
+                    new Rectangle(0, 0, (double)Utils.DpToPx((float)iconView.WidthRequest), (double)Utils.DpToPx((float)iconView.HeightRequest)), 
+                    Platform.Android.Platform.CreateRendererWithContext(iconView, _context));
                 var otherView = new FrameLayout(nativeView.Context);
                 nativeView.LayoutParameters = new FrameLayout.LayoutParams(Utils.DpToPx((float)iconView.WidthRequest), Utils.DpToPx((float)iconView.HeightRequest));
                 otherView.AddView(nativeView);
@@ -315,6 +367,16 @@ namespace Xamarin.Forms.GoogleMaps.Logics.Android
         protected override void OnUpdateInfoWindowAnchor(Pin outerItem, Marker nativeItem)
         {
             nativeItem.SetInfoWindowAnchor((float) outerItem.InfoWindowAnchor.X, (float) outerItem.InfoWindowAnchor.Y);
+        }
+
+        protected override void OnUpdateZIndex(Pin outerItem, Marker nativeItem)
+        {
+            nativeItem.ZIndex = outerItem.ZIndex;
+        }
+
+        protected override void OnUpdateTransparency(Pin outerItem, Marker nativeItem)
+        {
+            nativeItem.Alpha = 1f - outerItem.Transparency;
         }
     }
 }

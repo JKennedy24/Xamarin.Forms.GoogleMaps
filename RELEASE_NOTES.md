@@ -1,5 +1,152 @@
 Xamarin.Forms.GoogleMaps Release Notes
 ----
+# 3.0.3
+
+## Bug Fixes
+
+* #413 [iOS]Fix resets camera when device rotating
+
+# 3.0.2
+
+## New Features
+
+* #535 [Android]No longer need WriteExternalStorage permission
+
+## Bug Fixes
+
+* #413 [iOS]Fix resets camera when device rotating
+* #549 [iOS]InfoWindowLongClicked does not work
+
+# 3.0.1
+
+## Bug Fixes
+
+* #466 [Android]Fix memory leak when Map disposed
+* #413 [Android]Fix resets camera when device rotating
+
+# 3.0.0
+
+## New Features
+
+* #355 Support .NET Standard 2.0
+	* Now depends Xamarin.Forms 3.0.0.482510+
+	* [UWP]Now depends Windows 10 Fall Creators Update(build 16299)
+
+* PR#483 [Android]Update reference GooglePlayServices.Maps package to 60.1142.1
+* #452 [Android]Change MapRenderer.OnMapReady's accesibility from private to protected
+* #487 [Android/iOS]Add Map.Region property what can get correct screen corner latitude/longitude
+* #509 Now depends Xamarin.Forms 3.0.0.482510+
+* #499 Add TileLayer.ZIndex property
+* #497 [Android/iOS]Support Caching BitmapDescriptors(Android) or UIImages(iOS)
+
+## Bug Fixes
+
+* #452 [Android]Fix MapRenderer.OnMapReady accesibility
+* #517 [iOS]iOS 10.0+ native crash when setting a value to the Map.MapStyle property.
+* #491 [Android/iOS]Causes NotSupportedException when using stream via URL
+* #504 [iOS]Fix NullPointerException when Page popped
+
+# 2.3.1-beta1
+
+## New Features
+
+* #406 [Android]Add UiSettings.MapToolbarEnabled property
+
+# 2.3.0
+
+## New Features
+
+* #29 [Android/iOS]Add OnMarkerCreating, OnMarkerCreated, OnMarkerDeleting and OnMarkerDeleted callback methods for custom renderer
+
+## Bug Fixes
+
+* #[Android]Fix Polygon, Polyline, Circle, Pin, GroundOverlays does not work
+* #373 [Android]Improve view initialization and uninitialization
+* #40 [iOS]Fix bundle xxx@1x.png, xxx@2x.png, xxx@3x.png does not work for marker icon.
+* #431 [iOS]Fix doesn't work with Xamarin.Google.iOS.Maps 2.4.0+
+* #367 [iOS]Fix MyLocationEnabled doesn't work 
+* #421 [iOS/Android/UWP]Fix InitialCameraUpdate parsing failed
+* #40 [iOS]Fix icon size is bigger than Android when load from bundle or stream
+
+# 2.2.1
+
+## Bug Fixes
+
+* #400 [iOS]Fix Map.MyLocationEnabled in page constructor doesn't work
+* #400 [iOS]Fix Direct assign 'MyLocationButtonEnabled' value / result = no show
+
+# 2.2.0
+
+## New Features
+
+* #195 [Android/iOS]Add CameraMoveStarted, CameraMoving, CameraIdled event
+
+## Bug Fixes
+
+* #371 [Android]UiSettings.ZoomControls enabled not processed in page constructor
+
+# 2.1.1
+
+## New Features
+
+* #386 [Android/iOS]Add Pin.Transparency property
+* #361 [Android/iOS]Add ZIndex property to GroundOverlay
+
+## Bug Fixes
+
+* #352 [Android]NullReferenceException when page closing
+* #237 [iOS]Fix Modifying Positions doesn't work when after added polyline or polygon
+* #379 Default Constructor not found for CameraUpdateConverter
+* #374 [Android]MapToolbar is not disappear
+* #378 [iOS]Ground Overlay not shown when added 
+
+# 2.1.0
+
+## New Features
+
+* #308 [Android/iOS]Add Map.InfoWindowLongClicked event
+* #8 Add UiSettings class
+* #17 [Android/iOS]Add Circle.Clicked event 
+* #117 [Android/iOS]Support map styling
+* #313 [Android/iOS/UWP]Add MapType Terrain
+* #325 [Android/iOS/UWP]Add Polyline.ZIndex property
+* #327 [UWP]Support Pin.InfoWindowClicked event
+* #326 [UWP]Support Polyline
+* #331 [Android/iOS]Add Polygon.ZIndex and Circle.ZIndex property 
+* PR#342 [UWP]Support SelectedPinChanged
+
+## Bug Fixes
+
+* PR#318 [UWP]Fix memory leak when remove pins
+* #332 [iOS]Changes Polyline and Polygon property does not work at after added
+* #310 [Android/iOS]Fix MethodAccessException in CameraUpdateConverter
+* #335 [Android/iOS]Fix HasScrollEnabled not working correctly
+* PR#350 [UWP]Fix small memory leaks
+
+# 2.0.0
+
+## **Important**
+
+* Support Xamarin.Forms 2.3.4+ and Xamarin.GooglePlayServices.Maps 42+
+* End of support for Xamarin.Forms 2.3.3- and Xamarin.GooglePlayServices.Maps 29-# 1.8.2-beta1
+
+## New Features
+
+* #264 [Android/iOS]Add Pin.ZIndex property
+
+## Bug Fixes
+
+* #280 [Android]Build with Link All SDK Assemblies Fails
+
+# 1.8.1
+
+## Bug Fixes
+
+* #278 [iOS]HasRotationEnabled doesn't work
+* PR#286 [Android/iOS/UWP]Fix general Memory leaks
+* #281 [iOS]Fix Null Reference when navigating away from map page
+* PR#279 [iOS]Fixing stream position 
+
 # 1.8.0
 
 ## New Features

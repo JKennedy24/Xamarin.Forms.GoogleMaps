@@ -1,11 +1,19 @@
-## ![](logo.png) Xamarin.Forms.GoogleMaps ![buildstatus_by_bitrise](https://www.bitrise.io/app/57c1455061c4af11.svg?token=AzWRh4pkJvZ30qLQSY9Nqg)
-
+## ![logo](logo.png) Xamarin.Forms.GoogleMaps 
+![](https://img.shields.io/nuget/v/Xamarin.Forms.GoogleMaps.svg) ![](https://img.shields.io/nuget/dt/Xamarin.Forms.GoogleMaps.svg) [![Build status](https://build.appcenter.ms/v0.1/apps/99e6fb9e-fe8c-49df-b190-8aa1732a0ad2/branches/master/badge)](https://appcenter.ms) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](http://gitter.im/Xamarin-Forms-GoogleMaps/public) [![donate/kyash](https://img.shields.io/badge/donate-kyash-orange.svg)](#寄付)
 
 [English README is here！](README.md)
 
 Xamarin.Forms 用の Googleマップライブラリです。
 
 [Xamarin.Forms.Maps](https://github.com/xamarin/Xamarin.Forms) をフォークして作っているので、使い方はほとんど同じです。
+
+
+## デモアプリ
+
+このライブラリの全ての機能が試せるデモアプリを以下より配信しています。このアプリのソースは [XFGoogleMapSample](https://github.com/amay077/Xamarin.Forms.GoogleMaps/tree/master/XFGoogleMapSample) です。
+
+* [Android DEMO Apps](https://install.mobile.azure.com/users/okuokuoku/apps/xfgooglemapsample/distribution_groups/trial) - このリンクをAndroidのブラウザで開いてください
+* iOS DEMO Apps - [Gitter](https://gitter.im/Xamarin-Forms-GoogleMaps/public) かなにかでリクエストしてください（デバイスのUUIDを教えてもらう必要があります）
 
 ![screenshot](screenshot01.png)
 
@@ -79,6 +87,39 @@ public partial class AppDelegate : global::Xamarin.Forms.Platform.iOS.FormsAppli
 }
 ``` 
 
+UWP の場合、 Xamarin.Forms.GoogleMaps.UWP.dll の Assembly を ``Xamarin.Forms.Forms.Init()`` に渡す必要があります。
+
+```csharp
+// App.xaml.cs
+protected override void OnLaunched(LaunchActivatedEventArgs e)
+{
+    Frame rootFrame = Window.Current.Content as Frame;
+
+    if (rootFrame == null)
+    {
+        rootFrame = new Frame();
+        rootFrame.NavigationFailed += OnNavigationFailed;
+
+        // Should add UWP side assembly to rendererAssemblies
+        var rendererAssemblies = new []
+        {
+            typeof(Xamarin.Forms.GoogleMaps.UWP.MapRenderer).GetTypeInfo().Assembly
+        };
+        Xamarin.Forms.Forms.Init(e, rendererAssemblies);
+        
+        Xamarin.FormsGoogleMaps.Init("your_bing_maps_api_key");
+
+        Window.Current.Content = rootFrame;
+    }
+
+    if (rootFrame.Content == null)
+    {
+        rootFrame.Navigate(typeof(MainPage), e.Arguments);
+    }
+    Window.Current.Activate();
+}
+```
+
 既定の名前空間が ``Xamarin.Forms.Maps`` から ``Xamarin.Forms.GoogleMaps`` に変更されています。他のAPIはすべて同じです。
 
 サンプルプログラムが、
@@ -86,6 +127,39 @@ public partial class AppDelegate : global::Xamarin.Forms.Platform.iOS.FormsAppli
 * [XFGoogleMapSample](https://github.com/amay077/Xamarin.Forms.GoogleMaps/tree/master/XFGoogleMapSample)
 
 にあります。
+
+## 採用事例
+
+Xamarin.Forms.GoogleMaps が使われているアプリを紹介します(他にもあったら [教えてください](https://github.com/amay077/Xamarin.Forms.GoogleMaps/issues/512))。
+
+<table>
+  <tr>
+    <td align="center">
+      <h3><a target="_blank" href="https://www.herenow.city/">HereNow</a></h3>
+      <img src="showcase_herenow.jpg" width="200" width="200" style="max-width:100%;">
+      <p>by <a target="_blank" href="https://www.cinra.co.jp/">CINRA, Inc.</a></p>
+    </td>
+    <td align="center">
+      <h3><a target="_new" href="https://www.citybee.lt/">CityBee</a></h3>
+      <img src="showcase_citybee.png" width="200" width="200" style="max-width:100%;">
+      <p>&nbsp;</p>
+    </td>
+    <td align="center">
+      <h3><a target="_new" href="https://itunes.apple.com/tr/app/rentacarss-ara%C3%A7-takip/id1276280125">Rentacarss Araç Takip</a></h3>
+      <img src="showcase_rentacarss.jpg" width="200" width="200" style="max-width:100%;">
+      <p>&nbsp;</p>
+    </td>
+    <td align="center">
+      <h3><a target="_new" href="https://www.uspace.city/">UPSPACE</a></h3>
+      <img src="showcase_upspace.png" width="200" width="200" style="max-width:100%;">
+      <p>&nbsp;</p>
+    </td>
+  </tr>
+</table>
+
+## リリースノーツ
+
+[Releases](https://github.com/amay077/Xamarin.Forms.GoogleMaps/releases) または [RELEASE_NOTES](RELEASE_NOTES.md) を見てください。
 
 ## 今後の予定
 
@@ -107,6 +181,20 @@ Windows 10 UWP 対応は「とりあえず」残しました。
 私たちは、Xamarin.Forms.GoogleMaps への、あなたの貢献に大変感謝します。
 
 開発に参加して頂ける方は、[コントリビューション ガイドライン](CONTRIBUTING-ja.md) を読んで下さい。
+
+## 寄付
+
+Xamarin.Forms.GoogleMaps 開発の継続のため、寄付を募集しています。
+
+**Gumroad**
+
+* [Gumroad](https://gum.co/xfgmdnate)
+
+**Kyash**
+
+![kyash](kyash_qr.jpg)
+
+あなたの寄付で開発者のモチベーションが上がります、どうかよろしくおねがいします :sushi:
 
 ## ライセンス
 

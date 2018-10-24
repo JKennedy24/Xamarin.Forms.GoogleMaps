@@ -9,7 +9,7 @@ using NativePolygon = Google.Maps.Polygon;
 
 namespace Xamarin.Forms.GoogleMaps.Logics.iOS
 {
-    internal class PolygonLogic : DefaultLogic<Polygon, NativePolygon, MapView>
+    internal class PolygonLogic : DefaultPolygonLogic<NativePolygon, MapView>
     {
         protected override IList<Polygon> GetItems(Map map) => map.Polygons;
 
@@ -40,6 +40,7 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
             nativePolygon.StrokeColor = outerItem.StrokeColor.ToUIColor();
             nativePolygon.FillColor = outerItem.FillColor.ToUIColor();
             nativePolygon.Tappable = outerItem.IsClickable;
+            nativePolygon.ZIndex = outerItem.ZIndex;
 
             nativePolygon.Holes = outerItem.Holes
                 .Select(hole => hole.ToMutablePath())
@@ -47,6 +48,12 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
 
             outerItem.NativeObject = nativePolygon;
             nativePolygon.Map = NativeMap;
+
+            outerItem.SetOnPositionsChanged((polygon, e) =>
+            {
+                var native = polygon.NativeObject as NativePolygon;
+                native.Path = polygon.Positions.ToMutablePath();
+            });
 
             outerItem.SetOnHolesChanged((polygon, e) =>
             {
@@ -73,6 +80,31 @@ namespace Xamarin.Forms.GoogleMaps.Logics.iOS
             var targetOuterItem = GetItems(Map).FirstOrDefault(
                 outerItem => object.ReferenceEquals(outerItem.NativeObject, e.Overlay));
             targetOuterItem?.SendTap();
+        }
+
+        internal override void OnUpdateIsClickable(Polygon outerItem, NativePolygon nativeItem)
+        {
+            nativeItem.Tappable = outerItem.IsClickable;
+        }
+
+        internal override void OnUpdateStrokeColor(Polygon outerItem, NativePolygon nativeItem)
+        {
+            nativeItem.StrokeColor = outerItem.StrokeColor.ToUIColor();
+        }
+
+        internal override void OnUpdateStrokeWidth(Polygon outerItem, NativePolygon nativeItem)
+        {
+            nativeItem.StrokeWidth = outerItem.StrokeWidth;
+        }
+
+        internal override void OnUpdateFillColor(Polygon outerItem, NativePolygon nativeItem)
+        {
+            nativeItem.FillColor = outerItem.FillColor.ToUIColor();
+        }
+
+        internal override void OnUpdateZIndex(Polygon outerItem, NativePolygon nativeItem)
+        {
+            nativeItem.ZIndex = outerItem.ZIndex;
         }
     }
 }

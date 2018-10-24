@@ -1,7 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
-using Xamarin.Forms.GoogleMaps.Logics;
-namespace Xamarin.Forms.GoogleMaps
+
+namespace Xamarin.Forms.GoogleMaps.Logics
 {
     internal abstract class DefaultPinLogic<TNative, TNativeMap> : DefaultLogic<Pin, TNative, TNativeMap>
         where TNative : class
@@ -27,9 +27,11 @@ namespace Xamarin.Forms.GoogleMaps
             else if (e.PropertyName == Pin.AnchorProperty.PropertyName) OnUpdateAnchor(outerItem, nativeItem);
             else if (e.PropertyName == Pin.FlatProperty.PropertyName) OnUpdateFlat(outerItem, nativeItem);
             else if (e.PropertyName == Pin.InfoWindowAnchorProperty.PropertyName) OnUpdateInfoWindowAnchor(outerItem, nativeItem);
+            else if (e.PropertyName == Pin.ZIndexProperty.PropertyName) OnUpdateZIndex(outerItem, nativeItem);
+            else if (e.PropertyName == Pin.TransparencyProperty.PropertyName) OnUpdateTransparency(outerItem, nativeItem);
         }
 
-       protected abstract void OnUpdateAddress(Pin outerItem, TNative nativeItem);
+        protected abstract void OnUpdateAddress(Pin outerItem, TNative nativeItem);
 
         protected abstract void OnUpdateLabel(Pin outerItem, TNative nativeItem);
 
@@ -50,6 +52,10 @@ namespace Xamarin.Forms.GoogleMaps
         protected abstract void OnUpdateFlat(Pin outerItem, TNative nativeItem);
 
         protected abstract void OnUpdateInfoWindowAnchor(Pin outerItem, TNative nativeItem);
+
+        protected abstract void OnUpdateZIndex(Pin outerItem, TNative nativeItem);
+
+        protected abstract void OnUpdateTransparency(Pin outerItem, TNative nativeItem);
     }
 }
 

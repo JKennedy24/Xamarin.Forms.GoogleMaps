@@ -32,6 +32,8 @@ namespace Xamarin.Forms.Maps.WinRT
         public TextBlock Address { get; set; }
         public FrameworkElement Icon { get; set; }
 
+        public event EventHandler<TappedRoutedEventArgs> InfoWindowClicked;
+
         internal PushPin(Pin pin)
         {
             if (pin == null)
@@ -69,15 +71,14 @@ namespace Xamarin.Forms.Maps.WinRT
                 TextWrapping = TextWrapping.WrapWholeWords,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
-            if (!string.IsNullOrEmpty(pin.Address))
+
+            Address = new TextBlock()
             {
-                Address = new TextBlock()
-                {
-                    Text = pin.Address,
-                    Foreground = new SolidColorBrush(Colors.Black),
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-            }
+                Text = pin.Address ?? string.Empty,
+                Foreground = new SolidColorBrush(Colors.Black),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
             DetailsView.Children.Add(PinLabel);
             if (!string.IsNullOrEmpty(pin.Address))
             {
@@ -88,6 +89,7 @@ namespace Xamarin.Forms.Maps.WinRT
                 DetailsView.Height = 35;
             }
             DetailsView.Visibility = Visibility.Collapsed;
+            DetailsView.Tapped += DetailsViewOnTapped;
             Root.Children.Add(DetailsView);
         }
 
@@ -149,13 +151,30 @@ namespace Xamarin.Forms.Maps.WinRT
             MapControl.SetNormalizedAnchorPoint(this, anchor);
         }
 
-        //TODO: implement xamarin view to UWP
         private void TransformXamarinViewToUWPBitmap(Pin outerItem, ContentControl nativeItem)
         {
             if (outerItem?.Icon?.Type == BitmapDescriptorType.View && outerItem?.Icon?.View != null)
             {
+                var iconView = outerItem.Icon.View;
 
+                ViewToRendererConverter converter = new ViewToRendererConverter();
+                var frameworkElement = converter.Convert(iconView, null, null, null) as FrameworkElement;
+
+                frameworkElement.Height = iconView.HeightRequest;
+                frameworkElement.Width = iconView.WidthRequest;
+
+                if (Icon != null)
+                {
+                    Root.Children.Remove(Icon);
+                }
+                Icon = frameworkElement;
+                Root.Children.Add(Icon);
             }
+        }
+
+        private void DetailsViewOnTapped(object sender, TappedRoutedEventArgs tappedRoutedEventArgs)
+        {
+            InfoWindowClicked?.Invoke(_pin, tappedRoutedEventArgs);
         }
     }
 }
